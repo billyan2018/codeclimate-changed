@@ -1,19 +1,79 @@
-import * as core from '@actions/core'
-import {wait} from './wait'
+import * as github from '@actions/github';
+import * as core from '@actions/core';
 
-async function run(): Promise<void> {
-  try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_RUNNER_DEBUG` to true
-
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
-
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    core.setFailed(error.message)
-  }
+interface FileLines {
+  start: number;
+  end: number
 }
 
-run()
+export interface ModifiedFile {
+  name: string;
+  deletion?: FileLines[];
+  addition?: FileLines[];
+}
+
+
+async function run() {
+  const base = github.context.payload.pull_request.base.sha;
+  const head = github.context.payload.pull_request.head.sha;
+
+  const client = github.getOctokit(core.getInput('token', {required: true});
+  const response = await client.repos.compareCommits({
+    base,
+    head,
+    owner: context.repo.owner,
+    context.repo.repo,
+  });
+
+  const files = response.data.files;
+  const modifiedFilesWithModifiedLines = files.map(parseFile);
+}
+
+function parseFile(file: {filename: string, patch?: string|undefined}): ModifiedFile {
+  const modifiedFile: ModifiedFile = {
+    name: file.filename
+  };
+  if (file.patch) {
+    // The changes are included in the file
+    const patches = file.patch.split('@@').filter((_, index) => index % 2); // Only take the line information and discard the modified code
+    for (const patch of patches) {
+      // patch is usually like " -6,7 +6,8"
+      try {
+        const hasAddition = patch.includes('+');
+        const hasDeletion = patch.includes('-');
+        if (hasAddition) {
+          const lines = patch.match(/\+.*/)![0].trim().slice(1).split(',').map(num) => parseInt(num)) as [number, number];
+          modifiedFile.addition ??= [];
+          modifiedFile.addition?.push({
+            start: lines[0],
+            end: lines[0] + lines[1],
+          });
+        }
+        if (hasDeletion) {
+
+          const lines = patch.split('+')[0].trim().slice(1).split(',').map((num) => parseInt(num)) as [number, number];
+          modifiedFile.deletion ??= [];
+          modifiedFile.deletion?.push({
+            start: lines[0],
+            end: lines[0] + lines[1],
+          });
+        }
+
+      } catch (error) {
+        console.log(`Error getting the patch of the file:\n${error}`);
+      }
+    }
+  } else {
+    // Take the all file
+    modifiedFile.addition = [{
+        start: 0,
+        end: Infinity,
+    }];
+    modifiedFile.deletion = [{
+        start: 0,
+        end: Infinity,
+    }];
+  }
+  return modifiedFile;
+
+run ();
