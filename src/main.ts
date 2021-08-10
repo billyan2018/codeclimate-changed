@@ -14,7 +14,7 @@ export interface ModifiedFile {
 
 
 async function run() {
-  console.log('run changed lines');
+  core.info('run changed lines');
   const context = github.context;
   const request = context.payload.pull_request;
   if (request == null) {
@@ -36,7 +36,7 @@ async function run() {
 
   const files = response.data.files;
   const modifiedFilesWithModifiedLines = files?.map(parseFile);
-  console.log(modifiedFilesWithModifiedLines);
+  core.info(modifiedFilesWithModifiedLines);
   return modifiedFilesWithModifiedLines;
 }
 
@@ -71,7 +71,7 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
         }
 
       } catch (error) {
-        console.log(`Error getting the patch of the file:\n${error}`);
+        core.error(`Error getting the patch of the file:\n${error}`);
       }
     }
   } else {
@@ -87,5 +87,5 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
   }
   return modifiedFile;
 };
-
+core.info('run');
 run ();
