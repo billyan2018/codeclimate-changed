@@ -14,6 +14,7 @@ export interface ModifiedFile {
 
 
 async function run() {
+  console.log('run changed lines');
   const context = github.context;
   const request = context.payload.pull_request;
   if (request == null) {
