@@ -64,15 +64,16 @@ function run() {
         const modifiedFilesWithModifiedLines = files === null || files === void 0 ? void 0 : files.map(parseFile);
         if (modifiedFilesWithModifiedLines != null) {
             modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
+            core.info(`changes: ${JSON.stringify(modifiedFilesWithModifiedLines)}`);
             const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
             const rawdata = fs.readFileSync(INPUT_FILE);
             core.info(`rawdata: ${rawdata}`);
-            const issuesInChangedFiles = JSON.parse(rawdata)
-                .filter((item) => changedFiles.includes(item.location.path))
-                .filter((issue) => {
+            let issuesInChangedFiles = JSON.parse(rawdata)
+                .filter((item) => changedFiles.includes(item.location.path));
+            core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
+            issuesInChangedFiles = issuesInChangedFiles.filter((issue) => {
                 var _a;
-                const path = issue.location.path;
-                const lines = issue.location.lines;
+                const { path, lines } = issue.location;
                 const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
                 if (files && files.length > 0) {
                     const file = files[0];
