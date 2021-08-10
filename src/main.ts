@@ -63,6 +63,11 @@ async function run() {
     const data = JSON.stringify(issuesInChangedFiles);
     fs.writeFileSync(OUTPUT_FILE, data);
     core.info(`issues in changed files:${data}`);
+    if (issuesInChangedFiles && issuesInChangedFiles.length > 0) {
+      core.error(data);
+      core.setFailed('The PR introduces new issues above');
+      process.exit(core.ExitCode.Failure);
+    }
   } else {
     fs.writeFileSync(OUTPUT_FILE, '[]');
   }
