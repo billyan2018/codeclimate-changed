@@ -43,7 +43,13 @@
       "semi": [2, "always"],
       "@typescript-eslint/semi": ["error", "always"],
       "@typescript-eslint/type-annotation-spacing": "error",
-      "@typescript-eslint/unbound-method": "error"
+      "@typescript-eslint/unbound-method": "error",
+      "prettier/prettier": [
+        "error",
+        {
+          "endOfLine": "auto",
+        }
+      ]
     },
     "env": {
       "node": true,

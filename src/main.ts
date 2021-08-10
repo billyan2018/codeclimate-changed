@@ -15,10 +15,6 @@ export interface ModifiedFile {
   addition?: FileLines[];
 }
 
-
-
-
-
 async function run() {
   core.info('run changed lines');
   const { context } = github;
@@ -49,14 +45,25 @@ async function run() {
     const changedFiles = modifiedFilesWithModifiedLines.map(item=> item.name);
     const rawdata = fs.readFileSync(INPUT_FILE);
     core.info(`rawdata: ${rawdata}`);
-    const issues = JSON.parse(rawdata).filter((item: any) => changedFiles.includes(item.location.path));
-    const data = JSON.stringify(issues);
+    const issuesInChangedFiles = JSON.parse(rawdata)
+    .filter((item: any) => changedFiles.includes(item.location.path))
+    .filter((issue: any) => {
+      const path = issue.location.path;
+      const lines = issue.location.lines;
+      const files = modifiedFilesWithModifiedLines.filter(file => file.name === path); 
+      if (files && files.length > 0) {
+        const file = files[0];
+        return file.addition?.some(block => block.start <= lines.start && block.end >= lines.end);
+      }
+      return false;
+    });
+    const data = JSON.stringify(issuesInChangedFiles);
     fs.writeFileSync(OUTPUT_FILE, data);
     core.info(`issues in changed files:${data}`);
+  } else {
+    fs.writeFileSync(OUTPUT_FILE, '[]');
   }
-  
 
-  return modifiedFilesWithModifiedLines;
 }
 
 function parseFile(file: {filename: string, patch?: string|undefined}): ModifiedFile {

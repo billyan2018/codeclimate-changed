@@ -67,12 +67,26 @@ function run() {
             const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
             const rawdata = fs.readFileSync(INPUT_FILE);
             core.info(`rawdata: ${rawdata}`);
-            const issues = JSON.parse(rawdata).filter((item) => changedFiles.includes(item.location.path));
-            const data = JSON.stringify(issues);
+            const issuesInChangedFiles = JSON.parse(rawdata)
+                .filter((item) => changedFiles.includes(item.location.path))
+                .filter((issue) => {
+                var _a;
+                const path = issue.location.path;
+                const lines = issue.location.lines;
+                const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
+                if (files && files.length > 0) {
+                    const file = files[0];
+                    return (_a = file.addition) === null || _a === void 0 ? void 0 : _a.some(block => block.start <= lines.start && block.end >= lines.end);
+                }
+                return false;
+            });
+            const data = JSON.stringify(issuesInChangedFiles);
             fs.writeFileSync(OUTPUT_FILE, data);
             core.info(`issues in changed files:${data}`);
         }
-        return modifiedFilesWithModifiedLines;
+        else {
+            fs.writeFileSync(OUTPUT_FILE, '[]');
+        }
     });
 }
 function parseFile(file) {
