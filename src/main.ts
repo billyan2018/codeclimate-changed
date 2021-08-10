@@ -18,7 +18,8 @@ async function run() {
   const context = github.context;
   const request = context.payload.pull_request;
   if (request == null) {
-    return;
+    core.error('request == null');
+    return null;
   }
   const base = request.base.sha;
   const head = request.head.sha;
@@ -35,6 +36,7 @@ async function run() {
   });
 
   const files = response.data.files;
+  core.info(`${files}`);
   const modifiedFilesWithModifiedLines = files?.map(parseFile);
   if (modifiedFilesWithModifiedLines != null) {
     modifiedFilesWithModifiedLines.forEach(line=>core.info(line.name));
