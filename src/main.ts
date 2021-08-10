@@ -36,7 +36,9 @@ async function run() {
 
   const files = response.data.files;
   const modifiedFilesWithModifiedLines = files?.map(parseFile);
-  core.info(modifiedFilesWithModifiedLines);
+  if (modifiedFilesWithModifiedLines != null) {
+    modifiedFilesWithModifiedLines.forEach(line=>core.info(line.name));
+  }
   return modifiedFilesWithModifiedLines;
 }
 

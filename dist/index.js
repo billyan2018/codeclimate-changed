@@ -39,6 +39,7 @@ const github = __importStar(__nccwpck_require__(438));
 const core = __importStar(__nccwpck_require__(186));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        core.info('run changed lines');
         const context = github.context;
         const request = context.payload.pull_request;
         if (request == null) {
@@ -55,7 +56,10 @@ function run() {
         });
         const files = response.data.files;
         const modifiedFilesWithModifiedLines = files === null || files === void 0 ? void 0 : files.map(parseFile);
-        console.log(modifiedFilesWithModifiedLines);
+        if (modifiedFilesWithModifiedLines != null) {
+            modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
+        }
+        return modifiedFilesWithModifiedLines;
     });
 }
 function parseFile(file) {
@@ -89,7 +93,7 @@ function parseFile(file) {
                 }
             }
             catch (error) {
-                console.log(`Error getting the patch of the file:\n${error}`);
+                core.error(`Error getting the patch of the file:\n${error}`);
             }
         }
     }
@@ -106,6 +110,8 @@ function parseFile(file) {
     }
     return modifiedFile;
 }
+;
+core.info('run');
 run();
 
 
