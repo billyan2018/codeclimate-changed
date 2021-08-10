@@ -1,7 +1,10 @@
 name: 'codeclimate-changed'
 description: 'run codeclimate on changed lines'
 author: 'billyan2018'
-
+inputs:
+  token: # change this
+    required: true
+    description: 'github token'
 runs:
   using: 'node12'
   main: 'dist/index.js'

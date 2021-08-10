@@ -37,6 +37,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(438));
 const core = __importStar(__nccwpck_require__(186));
+const fs = __nccwpck_require__(747);
+const INPUT_FILE = 'raw_codeclimate.json';
+const OUTPUT_FILE = 'changed_codeclimate.json';
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('run changed lines');
@@ -44,7 +47,7 @@ function run() {
         core.info(`${context}`);
         const request = context.payload.pull_request;
         if (request == null) {
-            core.error('request == null');
+            core.setFailed('No pull request found.');
             return null;
         }
         const base = request.base.sha;
@@ -61,6 +64,13 @@ function run() {
         const modifiedFilesWithModifiedLines = files === null || files === void 0 ? void 0 : files.map(parseFile);
         if (modifiedFilesWithModifiedLines != null) {
             modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
+            const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
+            const rawdata = fs.readFileSync(INPUT_FILE);
+            core.info(`rawdata: ${rawdata}`);
+            const issues = JSON.parse(rawdata).filter((item) => changedFiles.includes(item.location.path));
+            const data = JSON.stringify(issues);
+            fs.writeFileSync(OUTPUT_FILE, data);
+            core.info(`issues in changed files:${data}`);
         }
         return modifiedFilesWithModifiedLines;
     });

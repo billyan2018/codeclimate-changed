@@ -1,5 +1,8 @@
 import * as github from '@actions/github';
 import * as core from '@actions/core';
+const fs = require('fs');
+const INPUT_FILE = 'raw_codeclimate.json';
+const OUTPUT_FILE = 'changed_codeclimate.json';
 
 interface FileLines {
   start: number;
@@ -13,19 +16,21 @@ export interface ModifiedFile {
 }
 
 
+
+
+
 async function run() {
   core.info('run changed lines');
   const { context } = github;
   core.info(`${context}`);
   const request = context.payload.pull_request;
   if (request == null) {
-    core.error('request == null');
+    core.setFailed('No pull request found.');
     return null;
   }
+
   const base = request.base.sha;
   const head = request.head.sha;
-
- 
 
   const client = github.getOctokit(core.getInput('token', {required: true}));
 
@@ -41,7 +46,16 @@ async function run() {
   const modifiedFilesWithModifiedLines = files?.map(parseFile);
   if (modifiedFilesWithModifiedLines != null) {
     modifiedFilesWithModifiedLines.forEach(line=>core.info(line.name));
+    const changedFiles = modifiedFilesWithModifiedLines.map(item=> item.name);
+    const rawdata = fs.readFileSync(INPUT_FILE);
+    core.info(`rawdata: ${rawdata}`);
+    const issues = JSON.parse(rawdata).filter((item: any) => changedFiles.includes(item.location.path));
+    const data = JSON.stringify(issues);
+    fs.writeFileSync(OUTPUT_FILE, data);
+    core.info(`issues in changed files:${data}`);
   }
+  
+
   return modifiedFilesWithModifiedLines;
 }
 
