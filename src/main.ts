@@ -3,7 +3,7 @@ import * as core from '@actions/core';
 
 interface FileLines {
   start: number;
-  end: number
+  end: number;
 }
 
 export interface ModifiedFile {
@@ -14,19 +14,29 @@ export interface ModifiedFile {
 
 
 async function run() {
-  const base = github.context.payload.pull_request.base.sha;
-  const head = github.context.payload.pull_request.head.sha;
+  const context = github.context;
+  const request = context.payload.pull_request;
+  if (request == null) {
+    return;
+  }
+  const base = request.base.sha;
+  const head = request.head.sha;
 
-  const client = github.getOctokit(core.getInput('token', {required: true});
+ 
+
+  const client = github.getOctokit(core.getInput('token', {required: true}));
+
   const response = await client.repos.compareCommits({
     base,
     head,
     owner: context.repo.owner,
-    context.repo.repo,
+    repo: context.repo.repo,
   });
 
   const files = response.data.files;
-  const modifiedFilesWithModifiedLines = files.map(parseFile);
+  const modifiedFilesWithModifiedLines = files?.map(parseFile);
+  console.log(modifiedFilesWithModifiedLines);
+  return modifiedFilesWithModifiedLines;
 }
 
 function parseFile(file: {filename: string, patch?: string|undefined}): ModifiedFile {
@@ -42,7 +52,7 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
         const hasAddition = patch.includes('+');
         const hasDeletion = patch.includes('-');
         if (hasAddition) {
-          const lines = patch.match(/\+.*/)![0].trim().slice(1).split(',').map(num) => parseInt(num)) as [number, number];
+          const lines = patch.match(/\+.*/)![0].trim().slice(1).split(',').map(num => parseInt(num)) as [number, number];
           modifiedFile.addition ??= [];
           modifiedFile.addition?.push({
             start: lines[0],
@@ -75,5 +85,6 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
     }];
   }
   return modifiedFile;
+};
 
 run ();
