@@ -46,16 +46,17 @@ async function run() {
     
     const changedFiles = modifiedFilesWithModifiedLines.map(item=> item.name);
     const rawdata = fs.readFileSync(INPUT_FILE);
-    core.info(`rawdata: ${rawdata}`);
+   
     let issuesInChangedFiles = JSON.parse(rawdata)
     .filter((item: any) => changedFiles.includes(item.location.path));
     core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
     issuesInChangedFiles = issuesInChangedFiles.filter((issue: any) => {
       const {path, lines} = issue.location;
+      core.info('issue location ${JSON.stringify(location)}');
       const files = modifiedFilesWithModifiedLines.filter(file => file.name === path); 
       if (files && files.length > 0) {
         const file = files[0];
-        return file.addition?.some(block => block.start <= lines.start && block.end >= lines.end);
+        return file.addition?.some(block => block.start <= lines.begin && block.end >= lines.end);
       }
       return false;
     });

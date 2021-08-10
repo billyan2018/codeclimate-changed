@@ -67,17 +67,17 @@ function run() {
             core.info(`changes: ${JSON.stringify(modifiedFilesWithModifiedLines)}`);
             const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
             const rawdata = fs.readFileSync(INPUT_FILE);
-            core.info(`rawdata: ${rawdata}`);
             let issuesInChangedFiles = JSON.parse(rawdata)
                 .filter((item) => changedFiles.includes(item.location.path));
             core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
             issuesInChangedFiles = issuesInChangedFiles.filter((issue) => {
                 var _a;
                 const { path, lines } = issue.location;
+                core.info('issue location ${JSON.stringify(location)}');
                 const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
                 if (files && files.length > 0) {
                     const file = files[0];
-                    return (_a = file.addition) === null || _a === void 0 ? void 0 : _a.some(block => block.start <= lines.start && block.end >= lines.end);
+                    return (_a = file.addition) === null || _a === void 0 ? void 0 : _a.some(block => block.start <= lines.begin && block.end >= lines.end);
                 }
                 return false;
             });
