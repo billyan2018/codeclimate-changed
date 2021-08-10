@@ -40,7 +40,8 @@ const core = __importStar(__nccwpck_require__(186));
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         core.info('run changed lines');
-        const context = github.context;
+        const { context } = github;
+        core.info(`${context}`);
         const request = context.payload.pull_request;
         if (request == null) {
             core.error('request == null');

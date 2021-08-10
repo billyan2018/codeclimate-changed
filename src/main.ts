@@ -15,7 +15,8 @@ export interface ModifiedFile {
 
 async function run() {
   core.info('run changed lines');
-  const context = github.context;
+  const { context } = github;
+  core.info(`${context}`);
   const request = context.payload.pull_request;
   if (request == null) {
     core.error('request == null');
