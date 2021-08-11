@@ -97,14 +97,13 @@ function parseFile(file: { filename: string, patch?: string | undefined }): Modi
   return modifiedFile;
 };
 function parsePatchHunk(modifiedFile: ModifiedFile, patch: string): void {
+  core.info(`hunk: ${patch}`);
   const hasAddition = patch.includes('+');
   const pathMatch = patch.match(/\+.*/);
   if (hasAddition && pathMatch != null && pathMatch.length > 0) {
     const lineNumbers = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num)) as [number, number];
     const offset = lineNumbers[0];
-   
     const lines = patch.split('\n');
-    
     let removed = 0;
     let addedStart = 0;
     let addedEnd = 0;

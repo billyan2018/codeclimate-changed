@@ -125,6 +125,7 @@ function parseFile(file) {
 }
 ;
 function parsePatchHunk(modifiedFile, patch) {
+    core.info(`hunk: ${patch}`);
     const hasAddition = patch.includes('+');
     const pathMatch = patch.match(/\+.*/);
     if (hasAddition && pathMatch != null && pathMatch.length > 0) {
