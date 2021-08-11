@@ -1,6 +1,5 @@
 {
     "plugins": ["jest", "@typescript-eslint"],
-    "extends": ["plugin:github/recommended"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
       "ecmaVersion": 9,
@@ -43,13 +42,8 @@
       "semi": [2, "always"],
       "@typescript-eslint/semi": ["error", "always"],
       "@typescript-eslint/type-annotation-spacing": "error",
-      "@typescript-eslint/unbound-method": "error",
-      "prettier/prettier": [
-        "error",
-        {
-          "endOfLine": "auto",
-        }
-      ]
+      "@typescript-eslint/unbound-method": "error"
+     
     },
     "env": {
       "node": true,

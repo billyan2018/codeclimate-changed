@@ -34,46 +34,53 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(438));
 const core = __importStar(__nccwpck_require__(186));
-const fs = __nccwpck_require__(747);
+const fs = __importStar(__nccwpck_require__(747));
+const pr_comment_1 = __importDefault(__nccwpck_require__(112));
 const INPUT_FILE = 'raw_codeclimate.json';
-const OUTPUT_FILE = 'changed_codeclimate.json';
-function run() {
+const token = core.getInput('token', { required: true });
+function retrieveChangedFiles() {
     return __awaiter(this, void 0, void 0, function* () {
-        core.info('run changed lines');
         const { context } = github;
-        core.info(`${context}`);
         const request = context.payload.pull_request;
         if (request == null) {
             core.setFailed('No pull request found.');
-            return null;
+            process.exit(core.ExitCode.Failure);
         }
-        const base = request.base.sha;
-        const head = request.head.sha;
-        const client = github.getOctokit(core.getInput('token', { required: true }));
+        const client = github.getOctokit(token);
         const response = yield client.repos.compareCommits({
-            base,
-            head,
+            base: request.base.sha,
+            head: request.head.sha,
             owner: context.repo.owner,
             repo: context.repo.repo,
         });
-        const files = response.data.files;
-        core.info(`${files}`);
-        const modifiedFilesWithModifiedLines = files === null || files === void 0 ? void 0 : files.map(parseFile);
+        return response.data.files;
+    });
+}
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const files = yield retrieveChangedFiles();
+        if (!files || files.length == 0) {
+            core.info('No changes found.');
+            return;
+        }
+        const modifiedFilesWithModifiedLines = files.map(parseFile);
         if (modifiedFilesWithModifiedLines != null) {
             modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
             core.info(`changes: ${JSON.stringify(modifiedFilesWithModifiedLines)}`);
             const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
             const rawdata = fs.readFileSync(INPUT_FILE);
-            let issuesInChangedFiles = JSON.parse(rawdata)
+            let issuesInChangedFiles = JSON.parse(rawdata.toString())
                 .filter((item) => changedFiles.includes(item.location.path));
             core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
             issuesInChangedFiles = issuesInChangedFiles.filter((issue) => {
                 var _a;
                 const { path, lines } = issue.location;
-                core.info('issue location ${JSON.stringify(location)}');
                 const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
                 if (files && files.length > 0) {
                     const file = files[0];
@@ -82,16 +89,17 @@ function run() {
                 return false;
             });
             const data = JSON.stringify(issuesInChangedFiles);
-            fs.writeFileSync(OUTPUT_FILE, data);
             core.info(`issues in changed files:${data}`);
             if (issuesInChangedFiles && issuesInChangedFiles.length > 0) {
+                let message = 'This PR has the following issues:\n';
+                issuesInChangedFiles.forEach((issue) => {
+                    message += `- ${issue.location.path}: line: ${issue.location.begin}: ${issue.description} \n`;
+                });
+                pr_comment_1.default(message, token);
                 core.error(data);
                 core.setFailed('The PR introduces new issues above');
                 process.exit(core.ExitCode.Failure);
             }
-        }
-        else {
-            fs.writeFileSync(OUTPUT_FILE, '[]');
         }
     });
 }
@@ -108,8 +116,9 @@ function parseFile(file) {
             try {
                 const hasAddition = patch.includes('+');
                 const hasDeletion = patch.includes('-');
-                if (hasAddition) {
-                    const lines = patch.match(/\+.*/)[0].trim().slice(1).split(',').map(num => parseInt(num));
+                const pathMatch = patch.match(/\+.*/);
+                if (hasAddition && pathMatch != null && pathMatch.length > 0) {
+                    const lines = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num));
                     (_a = modifiedFile.addition) !== null && _a !== void 0 ? _a : (modifiedFile.addition = []);
                     (_b = modifiedFile.addition) === null || _b === void 0 ? void 0 : _b.push({
                         start: lines[0],
@@ -146,6 +155,72 @@ function parseFile(file) {
 ;
 core.info('run');
 run();
+
+
+/***/ }),
+
+/***/ 112:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __importStar(__nccwpck_require__(186));
+const github = __importStar(__nccwpck_require__(438));
+const addComments = (message, repoToken) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        //const {allowRepeats, message, repoToken, repoTokenUserLogin, proxyUrl} = getInputs()
+        const { payload: { pull_request: pullRequest, repository } } = github.context;
+        if (!repository) {
+            core.info('unable to determine repository from request type');
+            core.setOutput('comment-created', 'false');
+            return;
+        }
+        const { full_name: repoFullName } = repository;
+        const [owner, repo] = repoFullName.split('/');
+        const octokit = github.getOctokit(repoToken);
+        yield octokit.issues.createComment({
+            owner,
+            repo,
+            issue_number: (_a = pullRequest === null || pullRequest === void 0 ? void 0 : pullRequest.number) !== null && _a !== void 0 ? _a : 0,
+            body: message,
+        });
+        core.setOutput('comment-created', 'true');
+    }
+    catch (error) {
+        core.setFailed(error.message);
+    }
+});
+exports.default = addComments;
 
 
 /***/ }),

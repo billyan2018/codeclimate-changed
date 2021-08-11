@@ -1,8 +1,9 @@
 import * as github from '@actions/github';
 import * as core from '@actions/core';
-const fs = require('fs');
+import * as fs from 'fs';
+import addComments from './pr-comment';
+
 const INPUT_FILE = 'raw_codeclimate.json';
-const OUTPUT_FILE = 'changed_codeclimate.json';
 
 interface FileLines {
   start: number;
@@ -14,46 +15,46 @@ export interface ModifiedFile {
   deletion?: FileLines[];
   addition?: FileLines[];
 }
-
-async function run() {
-  core.info('run changed lines');
+const token = core.getInput('token', { required: true });
+async function retrieveChangedFiles(): Promise<{ filename: string, patch?: string | undefined }[ ] | undefined> {
   const { context } = github;
-  core.info(`${context}`);
   const request = context.payload.pull_request;
   if (request == null) {
     core.setFailed('No pull request found.');
-    return null;
+    process.exit(core.ExitCode.Failure);
   }
 
-  const base = request.base.sha;
-  const head = request.head.sha;
-
-  const client = github.getOctokit(core.getInput('token', {required: true}));
-
+  const client = github.getOctokit(token);
   const response = await client.repos.compareCommits({
-    base,
-    head,
+    base: request.base.sha,
+    head: request.head.sha,
     owner: context.repo.owner,
     repo: context.repo.repo,
   });
+  return response.data.files;
+}
 
-  const files = response.data.files;
-  core.info(`${files}`);
-  const modifiedFilesWithModifiedLines = files?.map(parseFile);
+async function run(): Promise<void> {
+ 
+  const files = await retrieveChangedFiles(); 
+  if (!files || files.length == 0) {
+    core.info('No changes found.');
+    return;
+  } 
+  const modifiedFilesWithModifiedLines = files.map(parseFile);
   if (modifiedFilesWithModifiedLines != null) {
-    modifiedFilesWithModifiedLines.forEach(line=>core.info(line.name));
+    modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
     core.info(`changes: ${JSON.stringify(modifiedFilesWithModifiedLines)}`);
-    
-    const changedFiles = modifiedFilesWithModifiedLines.map(item=> item.name);
+
+    const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
     const rawdata = fs.readFileSync(INPUT_FILE);
-   
-    let issuesInChangedFiles = JSON.parse(rawdata)
-    .filter((item: any) => changedFiles.includes(item.location.path));
+
+    let issuesInChangedFiles = JSON.parse(rawdata.toString())
+      .filter((item: any) => changedFiles.includes(item.location.path));
     core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
     issuesInChangedFiles = issuesInChangedFiles.filter((issue: any) => {
-      const {path, lines} = issue.location;
-      core.info('issue location ${JSON.stringify(location)}');
-      const files = modifiedFilesWithModifiedLines.filter(file => file.name === path); 
+      const { path, lines } = issue.location;
+      const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
       if (files && files.length > 0) {
         const file = files[0];
         return file.addition?.some(block => block.start <= lines.begin && block.end >= lines.end);
@@ -61,20 +62,22 @@ async function run() {
       return false;
     });
     const data = JSON.stringify(issuesInChangedFiles);
-    fs.writeFileSync(OUTPUT_FILE, data);
+
     core.info(`issues in changed files:${data}`);
     if (issuesInChangedFiles && issuesInChangedFiles.length > 0) {
+      let message = 'This PR has the following issues:\n';
+      issuesInChangedFiles.forEach((issue: any) => {
+        message += `- ${issue.location.path}: line: ${issue.location.begin}: ${issue.description} \n`;
+      });
+      addComments(message, token);
       core.error(data);
       core.setFailed('The PR introduces new issues above');
       process.exit(core.ExitCode.Failure);
     }
-  } else {
-    fs.writeFileSync(OUTPUT_FILE, '[]');
-  }
-
+  } 
 }
 
-function parseFile(file: {filename: string, patch?: string|undefined}): ModifiedFile {
+function parseFile(file: { filename: string, patch?: string | undefined }): ModifiedFile {
   const modifiedFile: ModifiedFile = {
     name: file.filename
   };
@@ -86,8 +89,9 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
       try {
         const hasAddition = patch.includes('+');
         const hasDeletion = patch.includes('-');
-        if (hasAddition) {
-          const lines = patch.match(/\+.*/)![0].trim().slice(1).split(',').map(num => parseInt(num)) as [number, number];
+        const pathMatch = patch.match(/\+.*/);
+        if (hasAddition && pathMatch != null && pathMatch.length > 0) {
+          const lines = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num)) as [number, number];
           modifiedFile.addition ??= [];
           modifiedFile.addition?.push({
             start: lines[0],
@@ -103,7 +107,6 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
             end: lines[0] + lines[1],
           });
         }
-
       } catch (error) {
         core.error(`Error getting the patch of the file:\n${error}`);
       }
@@ -111,15 +114,15 @@ function parseFile(file: {filename: string, patch?: string|undefined}): Modified
   } else {
     // Take the all file
     modifiedFile.addition = [{
-        start: 0,
-        end: Infinity,
+      start: 0,
+      end: Infinity,
     }];
     modifiedFile.deletion = [{
-        start: 0,
-        end: Infinity,
+      start: 0,
+      end: Infinity,
     }];
   }
   return modifiedFile;
 };
 core.info('run');
-run ();
+run();
