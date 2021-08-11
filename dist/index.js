@@ -92,7 +92,7 @@ function run() {
             if (issuesInChangedFiles && issuesInChangedFiles.length > 0) {
                 let message = 'This PR has the following issues:\n';
                 issuesInChangedFiles.forEach((issue) => {
-                    message += `- ${issue.location.path}: line: ${issue.location.begin}: ${issue.description} \n`;
+                    message += `- [${issue.engine_name}-${issue.check_name}]: ${issue.location.path}: line: ${issue.location.lines.begin}: ${issue.description} \n`;
                 });
                 const commentResult = yield pr_comment_1.default(message, token);
                 core.info(`commentResult ${commentResult}`);
