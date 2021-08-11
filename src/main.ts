@@ -84,7 +84,7 @@ function parseFile(file: { filename: string, patch?: string | undefined }): Modi
   // core.info(`file:${file.filename}: patch: ${file.patch}`);
   if (file.patch) {
     // The changes are included in the file
-    const patches = file.patch.split('@@ '); // Only take the line information and discard the modified code
+    const patches = file.patch.split('@@ -'); // Only take the line information and discard the modified code
 
     for (const patch of patches) {
       try {
