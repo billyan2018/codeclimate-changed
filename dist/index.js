@@ -108,6 +108,7 @@ function parseFile(file) {
     const modifiedFile = {
         name: file.filename
     };
+    core.info(`file:${file.filename}: path: ${file.patch}`);
     if (file.patch) {
         // The changes are included in the file
         const patches = file.patch.split('@@').filter((_, index) => index % 2); // Only take the line information and discard the modified code
