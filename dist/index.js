@@ -194,34 +194,31 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(186));
 const github = __importStar(__nccwpck_require__(438));
-const addComments = (message, repoToken) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    try {
-        //const {allowRepeats, message, repoToken, repoTokenUserLogin, proxyUrl} = getInputs()
-        const { payload: { pull_request: pullRequest, repository } } = github.context;
-        core.info('start to add comment');
-        if (!repository) {
-            core.info('unable to determine repository from request type');
-            core.setOutput('comment-created', 'false');
+function addComments(message, repoToken) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const context = github.context;
+            if (context.payload.pull_request == null && context.payload.issue == null) {
+                core.setFailed('No pull request or issue comment found.');
+                return;
+            }
+            let issue_number;
+            if (context.payload.pull_request != null) {
+                issue_number = context.payload.pull_request.number;
+            }
+            if (context.payload.issue != null) {
+                issue_number = context.payload.issue.number;
+            }
+            const octokit = github.getOctokit(repoToken);
+            yield octokit.issues.createComment(Object.assign(Object.assign({}, context.repo), { issue_number: issue_number, body: message }));
+        }
+        catch (error) {
+            core.setFailed(error.message);
             return;
         }
-        const { full_name: repoFullName } = repository;
-        const [owner, repo] = repoFullName.split('/');
-        const octokit = github.getOctokit(repoToken);
-        const issueNumber = (_a = pullRequest === null || pullRequest === void 0 ? void 0 : pullRequest.number) !== null && _a !== void 0 ? _a : 0;
-        const result = yield octokit.issues.createComment({
-            owner,
-            repo,
-            issue_number: issueNumber,
-            body: message,
-        });
-        core.info(`add comment:${result} - ${issueNumber}`);
-        core.setOutput('comment-created', 'true');
-    }
-    catch (error) {
-        core.setFailed(error.message);
-    }
-});
+    });
+}
+;
 exports.default = addComments;
 
 
