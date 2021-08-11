@@ -107,78 +107,68 @@ function parseFile(file) {
     const modifiedFile = {
         name: file.filename
     };
-    core.info(`file:${file.filename}: path: ${file.patch}`);
+    // core.info(`file:${file.filename}: patch: ${file.patch}`);
     if (file.patch) {
         // The changes are included in the file
         const patches = file.patch.split('@@').filter((_, index) => index % 2); // Only take the line information and discard the modified code
         for (const patch of patches) {
-            // patch is usually like " -6,7 +6,8"
             try {
-                const hasAddition = patch.includes('+');
-                const pathMatch = patch.match(/\+.*/);
-                if (hasAddition && pathMatch != null && pathMatch.length > 0) {
-                    const lineNumbers = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num));
-                    const offset = lineNumbers[0];
-                    console.log(offset);
-                    const lines = patch.split('\n');
-                    console.log(lines);
-                    let removed = 0;
-                    let addedStart = 0;
-                    let addedEnd = 0;
-                    for (let i = 1; i < lines.length; i++) {
-                        if (lines[i].startsWith('+')) {
-                            if (addedStart == 0) {
-                                addedStart = offset + i - removed - 1;
-                                addedEnd = offset + i - removed - 1;
-                            }
-                            else {
-                                addedEnd = offset + i - removed - 1;
-                            }
-                        }
-                        else {
-                            if (lines[i].startsWith('-')) {
-                                removed++;
-                            }
-                            if (addedStart > 0) {
-                                recordChangedLines(modifiedFile, addedStart, addedEnd);
-                            }
-                            addedStart = 0;
-                            addedEnd = 0;
-                        }
-                    }
-                    if (addedStart > 0) {
-                        recordChangedLines(modifiedFile, addedStart, addedEnd);
-                    }
-                }
+                parsePatchHunk(modifiedFile, patch);
             }
             catch (error) {
                 core.error(`Error getting the patch of the file:\n${error}`);
             }
         }
     }
-    else {
-        // Take the all file
-        modifiedFile.addition = [{
-                start: 0,
-                end: Infinity,
-            }];
-        modifiedFile.deletion = [{
-                start: 0,
-                end: Infinity,
-            }];
-    }
     core.info(`modifiedFile: ${JSON.stringify(modifiedFile)}`);
     return modifiedFile;
 }
 ;
+function parsePatchHunk(modifiedFile, patch) {
+    const hasAddition = patch.includes('+');
+    const pathMatch = patch.match(/\+.*/);
+    if (hasAddition && pathMatch != null && pathMatch.length > 0) {
+        const lineNumbers = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num));
+        const offset = lineNumbers[0];
+        const lines = patch.split('\n');
+        let removed = 0;
+        let addedStart = 0;
+        let addedEnd = 0;
+        for (let i = 1; i < lines.length; i++) {
+            if (lines[i].startsWith('+')) {
+                if (addedStart == 0) {
+                    addedStart = offset + i - removed - 1;
+                    addedEnd = offset + i - removed - 1;
+                }
+                else {
+                    addedEnd = offset + i - removed - 1;
+                }
+            }
+            else {
+                if (lines[i].startsWith('-')) {
+                    removed++;
+                }
+                if (addedStart > 0) {
+                    recordChangedLines(modifiedFile, addedStart, addedEnd);
+                }
+                addedStart = 0;
+                addedEnd = 0;
+            }
+        }
+        if (addedStart > 0) {
+            recordChangedLines(modifiedFile, addedStart, addedEnd);
+        }
+    }
+}
 function recordChangedLines(file, start, end) {
     var _a, _b;
     core.info(`${start} - ${end}`);
-    (_a = file.addition) !== null && _a !== void 0 ? _a : (file.addition = []);
+    file.addition = (_a = file.addition) !== null && _a !== void 0 ? _a : [];
     (_b = file.addition) === null || _b === void 0 ? void 0 : _b.push({
         start,
         end,
     });
+    core.info(`file: ${JSON.stringify(file)}`);
 }
 core.info('run');
 run();
