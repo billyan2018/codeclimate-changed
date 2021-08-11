@@ -197,6 +197,7 @@ const github = __importStar(__nccwpck_require__(438));
 function addComments(message, repoToken) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
+            core.info('start  to add comment');
             const context = github.context;
             if (context.payload.pull_request == null && context.payload.issue == null) {
                 core.setFailed('No pull request or issue comment found.');
@@ -210,7 +211,8 @@ function addComments(message, repoToken) {
                 issue_number = context.payload.issue.number;
             }
             const octokit = github.getOctokit(repoToken);
-            yield octokit.issues.createComment(Object.assign(Object.assign({}, context.repo), { issue_number: issue_number, body: message }));
+            const result = yield octokit.issues.createComment(Object.assign(Object.assign({}, context.repo), { issue_number: issue_number, body: message }));
+            core.info(`add comment:${result} - ${issue_number}`);
         }
         catch (error) {
             core.setFailed(error.message);
