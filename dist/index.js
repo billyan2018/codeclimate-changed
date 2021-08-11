@@ -94,7 +94,8 @@ function run() {
                 issuesInChangedFiles.forEach((issue) => {
                     message += `- ${issue.location.path}: line: ${issue.location.begin}: ${issue.description} \n`;
                 });
-                pr_comment_1.default(message, token);
+                const commentResult = yield pr_comment_1.default(message, token);
+                core.info(`commentResult ${commentResult}`);
                 core.error(data);
                 core.setFailed('The PR introduces new issues above');
                 process.exit(core.ExitCode.Failure);

@@ -68,7 +68,8 @@ async function run(): Promise<void> {
       issuesInChangedFiles.forEach((issue: any) => {
         message += `- ${issue.location.path}: line: ${issue.location.begin}: ${issue.description} \n`;
       });
-      addComments(message, token);
+      const commentResult = await addComments(message, token);
+      core.info(`commentResult ${commentResult}`);
       core.error(data);
       core.setFailed('The PR introduces new issues above');
       process.exit(core.ExitCode.Failure);
