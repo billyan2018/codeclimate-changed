@@ -167,11 +167,13 @@ function parseFile(file) {
                 end: Infinity,
             }];
     }
+    core.info(`modifiedFile: ${JSON.stringify(modifiedFile)}`);
     return modifiedFile;
 }
 ;
 function recordChangedLines(file, start, end) {
     var _a, _b;
+    core.info(`${start} - ${end}`);
     (_a = file.addition) !== null && _a !== void 0 ? _a : (file.addition = []);
     (_b = file.addition) === null || _b === void 0 ? void 0 : _b.push({
         start,

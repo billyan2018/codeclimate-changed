@@ -137,9 +137,11 @@ function parseFile(file: { filename: string, patch?: string | undefined }): Modi
       end: Infinity,
     }];
   }
+  core.info(`modifiedFile: ${JSON.stringify(modifiedFile)}`);
   return modifiedFile;
 };
 function recordChangedLines(file: ModifiedFile, start: number, end: number): void {
+  core.info(`${start} - ${end}`);
   file.addition ??= [];
   file.addition?.push({
     start,
