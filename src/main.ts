@@ -16,7 +16,7 @@ export interface ModifiedFile {
   addition?: FileLines[];
 }
 const token = core.getInput('token', { required: true });
-async function retrieveChangedFiles(): Promise<{ filename: string, patch?: string | undefined }[ ] | undefined> {
+async function retrieveChangedFiles(): Promise<{ filename: string, patch?: string | undefined }[] | undefined> {
   const { context } = github;
   const request = context.payload.pull_request;
   if (request == null) {
@@ -35,12 +35,12 @@ async function retrieveChangedFiles(): Promise<{ filename: string, patch?: strin
 }
 
 async function run(): Promise<void> {
- 
-  const files = await retrieveChangedFiles(); 
+
+  const files = await retrieveChangedFiles();
   if (!files || files.length == 0) {
     core.info('No changes found.');
     return;
-  } 
+  }
   const modifiedFilesWithModifiedLines = files.map(parseFile);
   if (modifiedFilesWithModifiedLines != null) {
     modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
@@ -74,7 +74,7 @@ async function run(): Promise<void> {
       core.setFailed('The PR introduces new issues above');
       process.exit(core.ExitCode.Failure);
     }
-  } 
+  }
 }
 
 function parseFile(file: { filename: string, patch?: string | undefined }): ModifiedFile {
@@ -89,23 +89,38 @@ function parseFile(file: { filename: string, patch?: string | undefined }): Modi
       // patch is usually like " -6,7 +6,8"
       try {
         const hasAddition = patch.includes('+');
-        const hasDeletion = patch.includes('-');
         const pathMatch = patch.match(/\+.*/);
         if (hasAddition && pathMatch != null && pathMatch.length > 0) {
-          const lines = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num)) as [number, number];
-          modifiedFile.addition ??= [];
-          modifiedFile.addition?.push({
-            start: lines[0],
-            end: lines[0] + lines[1],
-          });
-        }
-        if (hasDeletion) {
-          const lines = patch.split('+')[0].trim().slice(1).split(',').map((num) => parseInt(num)) as [number, number];
-          modifiedFile.deletion ??= [];
-          modifiedFile.deletion?.push({
-            start: lines[0],
-            end: lines[0] + lines[1],
-          });
+          const lineNumbers = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num)) as [number, number];
+          const offset = lineNumbers[0];
+          console.log(offset);
+          const lines = patch.split('\n');
+          console.log(lines);
+          let removed = 0;
+          let addedStart = 0;
+          let addedEnd = 0;
+          for (let i = 1; i < lines.length; i++) {
+            if (lines[i].startsWith('+')) {
+              if (addedStart == 0) {
+                addedStart = offset + i - removed - 1;
+                addedEnd = offset + i - removed - 1;
+              } else {
+                addedEnd = offset + i - removed - 1;
+              }
+            } else {
+              if (lines[i].startsWith('-')) {
+                removed++;
+              }
+              if (addedStart > 0) {
+                recordChangedLines(modifiedFile, addedStart, addedEnd);
+              }
+              addedStart = 0;
+              addedEnd = 0;
+            }
+          }
+          if (addedStart > 0) {
+            recordChangedLines(modifiedFile, addedStart, addedEnd);
+          }
         }
       } catch (error) {
         core.error(`Error getting the patch of the file:\n${error}`);
@@ -124,5 +139,12 @@ function parseFile(file: { filename: string, patch?: string | undefined }): Modi
   }
   return modifiedFile;
 };
+function recordChangedLines(file: ModifiedFile, start: number, end: number): void {
+  file.addition ??= [];
+  file.addition?.push({
+    start,
+    end,
+  });
+}
 core.info('run');
 run();

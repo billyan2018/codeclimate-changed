@@ -104,7 +104,6 @@ function run() {
     });
 }
 function parseFile(file) {
-    var _a, _b, _c, _d;
     const modifiedFile = {
         name: file.filename
     };
@@ -116,23 +115,40 @@ function parseFile(file) {
             // patch is usually like " -6,7 +6,8"
             try {
                 const hasAddition = patch.includes('+');
-                const hasDeletion = patch.includes('-');
                 const pathMatch = patch.match(/\+.*/);
                 if (hasAddition && pathMatch != null && pathMatch.length > 0) {
-                    const lines = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num));
-                    (_a = modifiedFile.addition) !== null && _a !== void 0 ? _a : (modifiedFile.addition = []);
-                    (_b = modifiedFile.addition) === null || _b === void 0 ? void 0 : _b.push({
-                        start: lines[0],
-                        end: lines[0] + lines[1],
-                    });
-                }
-                if (hasDeletion) {
-                    const lines = patch.split('+')[0].trim().slice(1).split(',').map((num) => parseInt(num));
-                    (_c = modifiedFile.deletion) !== null && _c !== void 0 ? _c : (modifiedFile.deletion = []);
-                    (_d = modifiedFile.deletion) === null || _d === void 0 ? void 0 : _d.push({
-                        start: lines[0],
-                        end: lines[0] + lines[1],
-                    });
+                    const lineNumbers = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num));
+                    const offset = lineNumbers[0];
+                    console.log(offset);
+                    const lines = patch.split('\n');
+                    console.log(lines);
+                    let removed = 0;
+                    let addedStart = 0;
+                    let addedEnd = 0;
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].startsWith('+')) {
+                            if (addedStart == 0) {
+                                addedStart = offset + i - removed - 1;
+                                addedEnd = offset + i - removed - 1;
+                            }
+                            else {
+                                addedEnd = offset + i - removed - 1;
+                            }
+                        }
+                        else {
+                            if (lines[i].startsWith('-')) {
+                                removed++;
+                            }
+                            if (addedStart > 0) {
+                                recordChangedLines(modifiedFile, addedStart, addedEnd);
+                            }
+                            addedStart = 0;
+                            addedEnd = 0;
+                        }
+                    }
+                    if (addedStart > 0) {
+                        recordChangedLines(modifiedFile, addedStart, addedEnd);
+                    }
                 }
             }
             catch (error) {
@@ -154,6 +170,14 @@ function parseFile(file) {
     return modifiedFile;
 }
 ;
+function recordChangedLines(file, start, end) {
+    var _a, _b;
+    (_a = file.addition) !== null && _a !== void 0 ? _a : (file.addition = []);
+    (_b = file.addition) === null || _b === void 0 ? void 0 : _b.push({
+        start,
+        end,
+    });
+}
 core.info('run');
 run();
 
