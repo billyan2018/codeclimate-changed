@@ -77,7 +77,6 @@ function run() {
             const rawdata = fs.readFileSync(INPUT_FILE);
             let issuesInChangedFiles = JSON.parse(rawdata.toString())
                 .filter((item) => changedFiles.includes(item.location.path));
-            core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
             issuesInChangedFiles = issuesInChangedFiles.filter((issue) => {
                 var _a;
                 const { path, lines } = issue.location;
@@ -200,6 +199,7 @@ const addComments = (message, repoToken) => __awaiter(void 0, void 0, void 0, fu
     try {
         //const {allowRepeats, message, repoToken, repoTokenUserLogin, proxyUrl} = getInputs()
         const { payload: { pull_request: pullRequest, repository } } = github.context;
+        core.info('start to add comment');
         if (!repository) {
             core.info('unable to determine repository from request type');
             core.setOutput('comment-created', 'false');
@@ -208,12 +208,14 @@ const addComments = (message, repoToken) => __awaiter(void 0, void 0, void 0, fu
         const { full_name: repoFullName } = repository;
         const [owner, repo] = repoFullName.split('/');
         const octokit = github.getOctokit(repoToken);
-        yield octokit.issues.createComment({
+        const issueNumber = (_a = pullRequest === null || pullRequest === void 0 ? void 0 : pullRequest.number) !== null && _a !== void 0 ? _a : 0;
+        const result = yield octokit.issues.createComment({
             owner,
             repo,
-            issue_number: (_a = pullRequest === null || pullRequest === void 0 ? void 0 : pullRequest.number) !== null && _a !== void 0 ? _a : 0,
+            issue_number: issueNumber,
             body: message,
         });
+        core.info(`add comment:${result} - ${issueNumber}`);
         core.setOutput('comment-created', 'true');
     }
     catch (error) {

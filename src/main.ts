@@ -51,7 +51,6 @@ async function run(): Promise<void> {
 
     let issuesInChangedFiles = JSON.parse(rawdata.toString())
       .filter((item: any) => changedFiles.includes(item.location.path));
-    core.info(`issues in changed files:${JSON.stringify(issuesInChangedFiles)}`);
     issuesInChangedFiles = issuesInChangedFiles.filter((issue: any) => {
       const { path, lines } = issue.location;
       const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
