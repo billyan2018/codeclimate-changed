@@ -38,138 +38,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const github = __importStar(__nccwpck_require__(438));
 const core = __importStar(__nccwpck_require__(186));
 const fs = __importStar(__nccwpck_require__(747));
 const pr_comment_1 = __importDefault(__nccwpck_require__(112));
 const INPUT_FILE = 'raw_codeclimate.json';
 const token = core.getInput('token', { required: true });
-function retrieveChangedFiles() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { context } = github;
-        const request = context.payload.pull_request;
-        if (request == null) {
-            core.setFailed('No pull request found.');
-            process.exit(core.ExitCode.Failure);
-        }
-        const client = github.getOctokit(token);
-        const response = yield client.repos.compareCommits({
-            base: request.base.sha,
-            head: request.head.sha,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-        });
-        return response.data.files;
-    });
-}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        const files = yield retrieveChangedFiles();
-        if (!files || files.length == 0) {
-            core.info('No changes found.');
-            return;
-        }
-        const modifiedFilesWithModifiedLines = files.map(parseFile);
-        if (modifiedFilesWithModifiedLines != null) {
-            modifiedFilesWithModifiedLines.forEach(line => core.info(line.name));
-            core.info(`changes: ${JSON.stringify(modifiedFilesWithModifiedLines)}`);
-            const changedFiles = modifiedFilesWithModifiedLines.map(item => item.name);
-            const rawdata = fs.readFileSync(INPUT_FILE);
-            let issuesInChangedFiles = JSON.parse(rawdata.toString())
-                .filter((item) => changedFiles.includes(item.location.path));
-            issuesInChangedFiles = issuesInChangedFiles.filter((issue) => {
-                var _a;
-                const { path, lines } = issue.location;
-                const files = modifiedFilesWithModifiedLines.filter(file => file.name === path);
-                if (files && files.length > 0) {
-                    const file = files[0];
-                    return (_a = file.addition) === null || _a === void 0 ? void 0 : _a.some(block => block.start <= lines.begin && block.end >= lines.end);
-                }
-                return false;
+        const rawdata = fs.readFileSync(INPUT_FILE);
+        const issuesInChangedFiles = JSON.parse(rawdata.toString());
+        // core.info(`issues in changed files:${data}`);
+        if (issuesInChangedFiles && issuesInChangedFiles.length > 0) {
+            let message = 'This PR has the following issues:\n';
+            issuesInChangedFiles.forEach((issue) => {
+                message += `- [${issue.engine_name}-${issue.check_name}]: ${issue.location.path}: line: ${issue.location.lines.begin}: ${issue.description} \n`;
             });
-            const data = JSON.stringify(issuesInChangedFiles);
-            core.info(`issues in changed files:${data}`);
-            if (issuesInChangedFiles && issuesInChangedFiles.length > 0) {
-                let message = 'This PR has the following issues:\n';
-                issuesInChangedFiles.forEach((issue) => {
-                    message += `- [${issue.engine_name}-${issue.check_name}]: ${issue.location.path}: line: ${issue.location.lines.begin}: ${issue.description} \n`;
-                });
-                const commentResult = yield pr_comment_1.default(message, token);
-                core.info(`commentResult ${commentResult}`);
-                core.error(data);
-                core.setFailed('The PR introduces new issues above');
-                process.exit(core.ExitCode.Failure);
-            }
+            const commentResult = yield pr_comment_1.default(message, token);
+            core.info(`commentResult ${commentResult}`);
+            //core.error(data);
+            core.setFailed('The PR introduces new issues above');
+            process.exit(core.ExitCode.Failure);
         }
     });
-}
-function parseFile(file) {
-    const modifiedFile = {
-        name: file.filename
-    };
-    // core.info(`file:${file.filename}: patch: ${file.patch}`);
-    if (file.patch) {
-        // The changes are included in the file
-        const patches = file.patch.split('@@ -'); // Only take the line information and discard the modified code
-        for (const patch of patches) {
-            try {
-                parsePatchHunk(modifiedFile, patch);
-            }
-            catch (error) {
-                core.error(`Error getting the patch of the file:\n${error}`);
-            }
-        }
-    }
-    core.info(`modifiedFile: ${JSON.stringify(modifiedFile)}`);
-    return modifiedFile;
-}
-;
-function parsePatchHunk(modifiedFile, patch) {
-    core.info(`hunk: ${patch}`);
-    const hasAddition = patch.includes('+');
-    const pathMatch = patch.match(/\+.*/);
-    if (hasAddition && pathMatch != null && pathMatch.length > 0) {
-        const lineNumbers = pathMatch[0].trim().slice(1).split(',').map(num => parseInt(num));
-        const offset = lineNumbers[0];
-        const lines = patch.split('\n');
-        let removed = 0;
-        let addedStart = 0;
-        let addedEnd = 0;
-        for (let i = 1; i < lines.length; i++) {
-            if (lines[i].startsWith('+')) {
-                if (addedStart == 0) {
-                    addedStart = offset + i - removed - 1;
-                    addedEnd = offset + i - removed - 1;
-                }
-                else {
-                    addedEnd = offset + i - removed - 1;
-                }
-            }
-            else {
-                if (lines[i].startsWith('-')) {
-                    removed++;
-                }
-                if (addedStart > 0) {
-                    recordChangedLines(modifiedFile, addedStart, addedEnd);
-                }
-                addedStart = 0;
-                addedEnd = 0;
-            }
-        }
-        if (addedStart > 0) {
-            recordChangedLines(modifiedFile, addedStart, addedEnd);
-        }
-    }
-}
-function recordChangedLines(file, start, end) {
-    var _a, _b;
-    core.info(`${start} - ${end}`);
-    file.addition = (_a = file.addition) !== null && _a !== void 0 ? _a : [];
-    (_b = file.addition) === null || _b === void 0 ? void 0 : _b.push({
-        start,
-        end,
-    });
-    core.info(`file: ${JSON.stringify(file)}`);
 }
 core.info('run');
 run();
@@ -271,7 +161,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.issue = exports.issueCommand = void 0;
-const os = __importStar(__nccwpck_require__(365));
+const os = __importStar(__nccwpck_require__(87));
 const utils_1 = __nccwpck_require__(278);
 /**
  * Commands
@@ -382,7 +272,7 @@ exports.getState = exports.saveState = exports.group = exports.endGroup = export
 const command_1 = __nccwpck_require__(351);
 const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(278);
-const os = __importStar(__nccwpck_require__(365));
+const os = __importStar(__nccwpck_require__(87));
 const path = __importStar(__nccwpck_require__(622));
 /**
  * The code to exit an action
@@ -675,7 +565,7 @@ exports.issueCommand = void 0;
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const fs = __importStar(__nccwpck_require__(747));
-const os = __importStar(__nccwpck_require__(365));
+const os = __importStar(__nccwpck_require__(87));
 const utils_1 = __nccwpck_require__(278);
 function issueCommand(command, message) {
     const filePath = process.env[`GITHUB_${command}`];
@@ -721,7 +611,7 @@ exports.toCommandValue = toCommandValue;
 
 /***/ }),
 
-/***/ 87:
+/***/ 53:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -729,7 +619,7 @@ exports.toCommandValue = toCommandValue;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Context = void 0;
 const fs_1 = __nccwpck_require__(747);
-const os_1 = __nccwpck_require__(365);
+const os_1 = __nccwpck_require__(87);
 class Context {
     /**
      * Hydrate the context from the environment
@@ -804,7 +694,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getOctokit = exports.context = void 0;
-const Context = __importStar(__nccwpck_require__(87));
+const Context = __importStar(__nccwpck_require__(53));
 const utils_1 = __nccwpck_require__(30);
 exports.context = new Context.Context();
 /**
@@ -897,7 +787,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getOctokitOptions = exports.GitHub = exports.context = void 0;
-const Context = __importStar(__nccwpck_require__(87));
+const Context = __importStar(__nccwpck_require__(53));
 const Utils = __importStar(__nccwpck_require__(914));
 // octokit + plugins
 const core_1 = __nccwpck_require__(762);
@@ -6393,7 +6283,7 @@ module.exports = require("net");
 
 /***/ }),
 
-/***/ 365:
+/***/ 87:
 /***/ ((module) => {
 
 "use strict";
